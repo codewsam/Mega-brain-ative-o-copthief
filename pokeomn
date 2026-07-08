@@ -1,0 +1,45 @@
+Entendi, no Pokémon Champions o total é 66 pontos pra distribuir entre os stats (não 66 por stat). Aqui vão as tabelas corrigidas:
+
+## 1. Sun Offense (Charizard Y)
+
+| Pokémon | Item | Nature | HP | Atk | Def | SpA | SpD | Spe | Total | Moveset |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Mega Charizard Y** | Charizardite Y | Timid | 0 | 0 | 0 | 42 | 0 | 24 | 66 | Weather Ball / Solar Beam / Protect / Flamethrower |
+| **Venusaur** | Focus Sash | Timid | 20 | 0 | 0 | 26 | 0 | 20 | 66 | Leaf Storm / Sludge Bomb / Sleep Powder / Protect |
+| **Garchomp** | Choice Scarf | Adamant | 0 | 44 | 0 | 0 | 0 | 22 | 66 | Earthquake / Rock Slide / Protect / Bulldoze |
+| **Incineroar** | Sitrus Berry | Careful | 26 | 14 | 0 | 0 | 26 | 0 | 66 | Fake Out / Flare Blitz / Parting Shot / U-turn |
+| **Mega Aerodactyl** | Aerodactylite | Jolly | 0 | 26 | 0 | 0 | 0 | 40 | 66 | Tailwind / Rock Slide / Dual Wingbeat / Protect |
+| **Rotom-Wash** | Leftovers | Timid | 24 | 0 | 18 | 24 | 0 | 0 | 66 | Electroweb / Hydro Pump / Protect / Volt Switch |
+
+## 2. Mega Floette — versão Whimsicott/Kingambit
+
+| Pokémon | Item | Nature | HP | Atk | Def | SpA | SpD | Spe | Total | Moveset |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Mega Floette** | Floettite | Calm | 14 | 0 | 0 | 26 | 26 | 0 | 66 | Protect / Dazzling Gleam / Moonblast / Calm Mind |
+| **Whimsicott** | Focus Sash | Jolly | 14 | 0 | 18 | 0 | 0 | 34 | 66 | Tailwind / Moonblast / Encore / Protect |
+| **Garchomp** | Life Orb | Adamant | 0 | 44 | 0 | 0 | 0 | 22 | 66 | Earthquake / Rock Slide / Protect / Dragon Claw |
+| **Kingambit** | Black Glasses | Adamant | 18 | 34 | 0 | 0 | 14 | 0 | 66 | Kowtow Cleave / Sucker Punch / Protect / Iron Head |
+| **Basculegion** | Mystic Water | Adamant | 0 | 44 | 0 | 0 | 0 | 22 | 66 | Wave Crash / Aqua Jet / Last Respects / Protect |
+| **Incineroar** | Sitrus Berry | Careful | 26 | 14 | 0 | 0 | 26 | 0 | 66 | Fake Out / Flare Blitz / Parting Shot / Darkest Lariat |
+
+## 3. Mega Floette — versão Balance (Maushold/Delphox)
+
+| Pokémon | Item | Nature | HP | Atk | Def | SpA | SpD | Spe | Total | Moveset |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Mega Floette** | Floettite | Calm | 14 | 0 | 0 | 26 | 26 | 0 | 66 | Protect / Dazzling Gleam / Moonblast / Calm Mind |
+| **Maushold** | Focus Sash | Jolly | 0 | 34 | 0 | 0 | 0 | 32 | 66 | Follow Me / Population Bomb / Protect / Super Fang |
+| **Mega Delphox** | Delphoxite | Timid | 0 | 0 | 0 | 42 | 0 | 24 | 66 | Protect / Substitute / Mystical Fire / Psychic |
+| **Garchomp** | Choice Scarf | Jolly | 0 | 44 | 0 | 0 | 0 | 22 | 66 | Earthquake / Rock Slide / Protect / Stomping Tantrum |
+| **Sinistcha** | Kasib Berry | Calm | 26 | 0 | 20 | 0 | 20 | 0 | 66 | Matcha Gotcha / Rage Powder / Trick Room / Protect |
+| **Incineroar** | Sitrus Berry | Careful | 26 | 14 | 0 | 0 | 26 | 0 | 66 | Fake Out / Flare Blitz / Parting Shot / Darkest Lariat |
+
+## 4. Modo Delphox (4 escolhidos)
+
+| Pokémon | Item | Nature | HP | Atk | Def | SpA | SpD | Spe | Total | Moveset |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Mega Delphox** | Delphoxite | Timid | 0 | 0 | 0 | 42 | 0 | 24 | 66 | Protect / Substitute / Mystical Fire / Psychic |
+| **Garchomp** | Choice Scarf | Jolly | 0 | 44 | 0 | 0 | 0 | 22 | 66 | Earthquake / Rock Slide / Dragon Claw / Protect |
+| **Sinistcha** | Kasib Berry | Calm | 26 | 0 | 20 | 0 | 20 | 0 | 66 | Matcha Gotcha / Rage Powder / Trick Room / Protect |
+| **Incineroar** | Sitrus Berry | Careful | 26 | 14 | 0 | 0 | 26 | 0 | 66 | Fake Out / Flare Blitz / Parting Shot / Darkest Lariat |
+
+Todas as linhas agora somam exatamente 66, respeitando o teto total do sistema. Se quiser, posso ajustar a proporção de algum bicho específico (tipo dar mais peso pra bulk do Incineroar ou mais Speed pro Garchomp) — é só falar qual prioridade você quer pra ele.
