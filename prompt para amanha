@@ -1,0 +1,67 @@
+Perfeito — segue um prompt pronto para você colar em outra IA:
+
+```text
+Você é um engenheiro especialista em pyRevit + IronPython 2.7 e Revit API.
+
+Preciso que você edite o script `script.py` de um botão pyRevit para corrigir erro de parsing e implementar mudanças de comportamento.
+
+CONTEXTO
+- Hoje o script está dando traceback do IronPython com muitos erros de indentação/tokens (ex.: `unindent does not match any outer indentation level`, `unexpected indent`, `return outside function`).
+- Isso normalmente acontece porque entrou texto solto (não-Python) no meio do arquivo.
+- Quero que o resultado final rode no IronPython do pyRevit (sem syntax de Python moderno incompatível).
+
+OBJETIVOS (OBRIGATÓRIOS)
+
+1) Corrigir o arquivo para ficar 100% válido em IronPython:
+- Remover qualquer texto solto/conversa que esteja fora de código Python.
+- Garantir indentação consistente.
+- Garantir que não exista `return` fora de função.
+- Não quebrar as funções existentes que já funcionavam.
+
+2) NÃO cotar escadas:
+- Na coleta/filtragem de elementos, ignorar qualquer elemento de escada (categoria Stair/Escada, inclusive variações de nome).
+- Manter log/debug indicando que foi ignorado.
+- Se após filtrar não sobrar elemento válido, mostrar alerta e encerrar como já é padrão do script.
+
+3) Ajustar a rotina de cotagem para esta ordem:
+- “analisa o lado da parede”
+- “cota inteira”
+- “cota em subgrupos daquele lado da parede”
+- “próxima parede”
+- repete
+- e só depois começa cotagem no interior da planta baixa
+
+Tradução técnica esperada:
+- Após detectar o lado clicado (sinal), ordenar os alinhamentos/correntes do exterior para o interior.
+- Para cada corrente:
+  a) criar primeiro a tarefa de cota total da parede/alinhamento (ponta a ponta),
+  b) depois criar as tarefas de subgrupos (vãos/segmentos) daquela mesma corrente,
+  c) depois avançar para a próxima corrente.
+- A primeira corrente deve sair para o lado clicado (exterior).
+- As demais correntes devem seguir para o interior da planta (lado oposto ao clique), mantendo espaçamento entre linhas.
+- A cota geral (se habilitada) continua por fora de tudo.
+
+4) Não cortar corrente:
+- Se houver lógica de “injeção de ponto de cruzamento”, manter abordagem de adicionar referência extra sem quebrar corrente existente.
+
+RESTRIÇÕES
+- Compatível com IronPython 2.7 (sem f-string, sem recursos exclusivos de Python 3 moderno).
+- Mudanças cirúrgicas: alterar só o necessário.
+- Preservar nomes/funções existentes quando possível.
+- Não adicionar dependências externas.
+- Manter estilo do código atual.
+
+ENTREGA ESPERADA
+- Forneça:
+  1) resumo objetivo do que foi alterado,
+  2) diff/patch completo do `script.py`,
+  3) versão final do arquivo corrigido,
+  4) checklist rápido confirmando:
+     - parsing ok no IronPython,
+     - escadas ignoradas,
+     - ordem da rotina implementada exatamente como descrita.
+
+Se encontrar ambiguidades, assuma a opção mais conservadora e estável para produção.
+```
+
+Se quiser, eu também posso te mandar uma **versão mais curta** desse prompt (compacta) para caber em IA com limite menor de caracteres.
