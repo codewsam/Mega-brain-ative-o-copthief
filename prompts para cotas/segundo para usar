@@ -1,0 +1,284 @@
+Esse é o prompt que eu usaria. Eu tentei escrever como se fosse uma especificação técnica para um desenvolvedor sênior, para evitar que ele tome decisões erradas.
+
+---
+
+# PROMPT
+
+Você é um engenheiro de software especialista em Autodesk Revit API, pyRevit, IronPython e geometria computacional.
+
+Estou desenvolvendo um plugin de cotagem automática para plantas estruturais.
+
+O plugin já possui um botão chamado **Gerar Cotas Automáticas**.
+
+Esse botão já funciona e NÃO deve ser removido.
+
+Toda a arquitetura atual deve ser preservada.
+
+Não reescreva o projeto.
+
+Não altere a organização.
+
+Não renomeie funções sem necessidade.
+
+Reutilize o máximo possível do código existente.
+
+---
+
+# OBJETIVO
+
+Quero transformar o plugin em uma ferramenta com dois modos de trabalho.
+
+## Modo 1
+
+**Gerar Cotas Automáticas**
+
+Funcionamento exatamente igual ao atual.
+
+Ao clicar:
+
+* analisa toda a vista;
+* encontra todas as paredes;
+* gera todas as cotas automaticamente.
+
+Esse modo continua sendo o principal.
+
+Não alterar seu comportamento, apenas continuar reutilizando as melhorias existentes.
+
+---
+
+## Modo 2
+
+Criar um novo botão chamado
+
+**Cotar Parede**
+
+Esse botão utilizará exatamente o mesmo algoritmo do modo automático.
+
+A única diferença é que ele irá processar apenas UMA parede escolhida pelo usuário.
+
+---
+
+# Fluxo do botão "Cotar Parede"
+
+Ao clicar:
+
+```
+Selecione uma parede.
+```
+
+O usuário deverá clicar em uma parede.
+
+Depois disso o plugin deve solicitar:
+
+```
+Selecione o lado onde deseja posicionar as cotas.
+```
+
+O usuário poderá clicar em qualquer ponto do lado desejado.
+
+Esse ponto servirá apenas para indicar em qual lado da parede as cotas devem ser posicionadas.
+
+Não utilizar esse ponto como referência geométrica da cota.
+
+Ele serve somente para definir o lado.
+
+---
+
+# Após selecionar a parede
+
+O plugin deve executar exatamente o mesmo algoritmo do modo automático.
+
+Ou seja:
+
+Localizar automaticamente:
+
+* faces externas;
+* faces internas;
+* portas;
+* janelas;
+* encontros;
+* paredes perpendiculares;
+* cruzamentos;
+* mudanças de espessura;
+* rebaixos;
+* reboques;
+* nichos;
+* qualquer outra referência pertencente àquela parede.
+
+Depois ordenar todas as referências ao longo do eixo da parede.
+
+Gerar automaticamente:
+
+* subcotas;
+* cota da parede inteira;
+* quando necessário, cota de alinhamento.
+
+Nunca gerar apenas uma dimensão simples entre dois pontos.
+
+Sempre utilizar o algoritmo inteligente já existente.
+
+---
+
+# Portas e janelas
+
+Toda FamilyInstance hospedada naquela parede deve entrar automaticamente na corrente de subcotas.
+
+Exemplos:
+
+* P1
+* P2
+* P3
+* P4
+* P5
+* P6
+
+e
+
+* J1
+* J2
+* J3
+
+e qualquer outra porta ou janela hospedada.
+
+Não depender apenas das faces encontradas.
+
+Também verificar os elementos hospedados.
+
+---
+
+# Ordem de geração
+
+Sempre seguir esta sequência:
+
+1. localizar referências da parede;
+
+2. localizar portas;
+
+3. localizar janelas;
+
+4. localizar encontros;
+
+5. localizar mudanças de espessura;
+
+6. localizar rebaixos;
+
+7. ordenar referências;
+
+8. gerar corrente completa de subcotas;
+
+9. gerar cota da parede inteira;
+
+10. gerar alinhamento quando necessário.
+
+---
+
+# Reutilização de código
+
+Não duplicar lógica.
+
+Criar funções reutilizáveis.
+
+O modo automático e o modo "Cotar Parede" devem utilizar exatamente as mesmas funções internas.
+
+A única diferença entre eles deve ser:
+
+Modo automático:
+
+```
+lista de todas as paredes da vista
+```
+
+Modo "Cotar Parede":
+
+```
+lista contendo apenas a parede selecionada
+```
+
+Todo o restante do pipeline deve ser compartilhado.
+
+---
+
+# Posicionamento
+
+No modo "Cotar Parede", utilizar o ponto clicado pelo usuário apenas para decidir:
+
+* lado interno;
+* lado externo.
+
+Nunca utilizar esse ponto para calcular referências.
+
+O cálculo das referências continua totalmente automático.
+
+---
+
+# Deduplicação
+
+Antes de criar qualquer cota verificar se ela já existe.
+
+Comparar:
+
+* parede;
+* referência inicial;
+* referência final;
+* posição da linha de cota;
+* eixo;
+* tipo da cota.
+
+Somente considerar duplicada quando toda essa assinatura for igual.
+
+Nunca remover cotas apenas porque possuem o mesmo valor.
+
+---
+
+# Compatibilidade
+
+Não alterar:
+
+* funcionamento do botão automático;
+* layout atual;
+* espaçamentos;
+* tipos de cota;
+* paredes inclinadas;
+* geração das cotas gerais;
+* tratamento de erros.
+
+O novo botão deve apenas reutilizar o pipeline existente para uma única parede.
+
+---
+
+# Objetivo final
+
+Ao terminar, o plugin deverá possuir apenas dois modos de operação:
+
+### 1. Gerar Cotas Automáticas
+
+Um clique.
+
+Analisa toda a vista.
+
+Gera todas as cotas automaticamente.
+
+---
+
+### 2. Cotar Parede
+
+Selecionar uma parede.
+
+Selecionar o lado onde deseja posicionar as cotas.
+
+O plugin identifica automaticamente todas as referências daquela parede e gera:
+
+* subcotas;
+* cota da parede inteira;
+* portas;
+* janelas;
+* encontros;
+* mudanças de espessura;
+
+mantendo exatamente o mesmo padrão visual utilizado pelo modo automático.
+
+---
+
+## Observação importante
+
+A implementação deve ser feita de forma que **toda melhoria futura na lógica de cotagem beneficie automaticamente os dois modos**, evitando duplicação de código e mantendo uma única implementação do algoritmo de geração de cotas. Isso garante manutenção mais simples e comportamento consistente entre os modos.
