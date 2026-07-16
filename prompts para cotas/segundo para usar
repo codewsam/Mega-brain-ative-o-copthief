@@ -1,20 +1,12 @@
-Esse é o prompt que eu usaria. Eu tentei escrever como se fosse uma especificação técnica para um desenvolvedor sênior, para evitar que ele tome decisões erradas.
+
 
 ---
 
 # PROMPT
 
-Você é um engenheiro de software especialista em Autodesk Revit API, pyRevit, IronPython e geometria computacional.
 
-Estou desenvolvendo um plugin de cotagem automática para plantas estruturais.
-
-O plugin já possui um botão chamado **Gerar Cotas Automáticas**.
-
-Esse botão já funciona e NÃO deve ser removido.
 
 Toda a arquitetura atual deve ser preservada.
-
-Não reescreva o projeto.
 
 Não altere a organização.
 
