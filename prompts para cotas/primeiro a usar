@@ -93,7 +93,7 @@ Parede atual
 Adicionar à corrente
 ```
 
-Isso vale para qualquer família hospedada.
+Isso vale para qualquer família hospedada ou pode aparecer como tag tbm.
 
 Exemplos:
 
@@ -282,7 +282,7 @@ O resultado esperado é:
 * paredes internas cotadas;
 * paredes externas cotadas;
 * sem cotas duplicadas;
-* sem poluição visual;
+* sem poluição visual (evite gerar valor da cota em cima de outro, prejudicando a visualização);
 * mantendo o layout atual do plugin.
 
 ---
