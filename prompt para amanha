@@ -1,3 +1,297 @@
-vc pode pegar esse codigo e melhorar para ele criar mais cotas? siga o padrao dele, eu só quero que melhore, por exemplo na view forma do terreo se vc ve ele nn gerou em algumas paredes, siga o padrao> cota a parede inteira> cota o reboque (sub-cotas) os pedacinhos dentro dess parede, e gere eles igual ta gerando ai no lado de fora para nn ficar bagunçado
+Segue um prompt completo e refinado para você usar diretamente:
 
-quando termianr me envie o codigo aqui para eu testar
+---
+
+# PROMPT
+
+Você é um engenheiro especialista em Autodesk Revit API, pyRevit, IronPython e geometria computacional.
+
+O plugin já funciona e NÃO deve ser reescrito.
+
+Quero manter toda a arquitetura atual, incluindo:
+
+* organização do código;
+* nomenclatura;
+* comentários;
+* interface;
+* parâmetros;
+* layout das cotas;
+* espaçamentos;
+* posicionamento das cotas;
+* compatibilidade com Revit;
+* suporte às paredes inclinadas;
+* deduplicação existente (melhorando-a, não removendo).
+
+O objetivo agora é apenas evoluir a inteligência do algoritmo de cotagem.
+
+---
+
+# 1. TODA PAREDE DEVE SER COTADA
+
+Nenhuma parede pode ficar sem:
+
+* cota da parede inteira;
+
+e, quando houver detalhes,
+
+* corrente completa de subcotas.
+
+Mesmo que exista somente uma parede naquele alinhamento.
+
+A existência de outras paredes nunca deve ser requisito para cotar uma parede.
+
+---
+
+# 2. COTAR PAREDES INTERNAS
+
+Hoje algumas paredes internas ficam sem nenhuma cota.
+
+Criar uma segunda passagem exclusiva para paredes internas.
+
+Fluxo:
+
+```
+Paredes externas
+
+↓
+
+Paredes internas
+
+↓
+
+Cotas gerais
+```
+
+Toda parede interna deve receber:
+
+* cota da parede inteira;
+* subcotas quando houver detalhes.
+
+---
+
+# 3. PORTAS E JANELAS
+
+Toda FamilyInstance hospedada em uma parede deve entrar automaticamente na corrente de subcotas.
+
+Não depender apenas das faces encontradas.
+
+Sempre verificar:
+
+```
+FamilyInstance
+
+↓
+
+Host
+
+↓
+
+Parede atual
+
+↓
+
+Adicionar à corrente
+```
+
+Isso vale para qualquer família hospedada.
+
+Exemplos:
+
+* P1
+* P2
+* P3
+* P4
+* P5
+* P6
+
+e
+
+* J1
+* J2
+* J3
+
+e qualquer outra porta ou janela existente.
+
+As cotas devem considerar:
+
+* largura do vão;
+* distância até os cantos;
+* distância até outros elementos.
+
+---
+
+# 4. SUBCOTAS COMPLETAS
+
+Depois de localizar a parede, procurar automaticamente:
+
+* portas;
+* janelas;
+* encontros;
+* cruzamentos;
+* mudanças de espessura;
+* rebaixos;
+* reboques;
+* nichos;
+* qualquer face interna relevante.
+
+Ordenar todos os pontos ao longo da parede.
+
+Depois gerar UMA única corrente completa de subcotas.
+
+Exemplo:
+
+```
+|----|------|-----|----|------|
+
+----------------------------
+
+parede inteira
+```
+
+---
+
+# 5. HIERARQUIA DE COTAGEM
+
+Sempre seguir exatamente esta ordem:
+
+1. parede inteira
+
+2. portas
+
+3. janelas
+
+4. encontros entre paredes
+
+5. mudanças de espessura
+
+6. rebaixos
+
+7. reboques
+
+8. nichos
+
+9. corrente completa de subcotas
+
+10. cotas de alinhamento
+
+11. cotas gerais
+
+Nunca inverter essa ordem.
+
+---
+
+# 6. EVITAR COTAS REPETIDAS
+
+Hoje algumas cotas são criadas duas vezes exatamente no mesmo local.
+
+Melhorar o algoritmo de deduplicação.
+
+Não comparar apenas o valor da dimensão.
+
+Comparar uma assinatura composta por:
+
+* id da parede;
+* referência inicial;
+* referência final;
+* eixo;
+* posição da linha de cota;
+* tipo da cota.
+
+Somente remover uma cota quando TODA essa assinatura for igual.
+
+Nunca remover apenas porque duas cotas possuem o mesmo comprimento.
+
+Exemplo:
+
+100 cm
+
+100 cm
+
+podem existir se estiverem em locais diferentes.
+
+Mas nunca podem existir duas cotas exatamente sobrepostas.
+
+---
+
+# 7. AGRUPAMENTO
+
+Cada parede deve ser tratada individualmente.
+
+As correntes devem existir apenas para organizar o posicionamento das linhas.
+
+Nunca usar a corrente para decidir se uma parede será cotada.
+
+A unidade principal do algoritmo passa a ser a parede.
+
+---
+
+# 8. BUSCA DE REFERÊNCIAS
+
+Antes de gerar as cotas procurar:
+
+* faces externas;
+* faces internas;
+* faces de portas;
+* faces de janelas;
+* encontros;
+* cruzamentos;
+* mudanças de espessura;
+* nichos;
+* rebaixos;
+* reboques.
+
+Quanto maior a quantidade de referências válidas, melhor será a corrente de subcotas.
+
+---
+
+# 9. PAREDES EXTERNAS
+
+Garantir que todas as paredes externas recebam:
+
+* cota total;
+* corrente completa de subcotas.
+
+Mesmo que sejam paredes longas ou isoladas.
+
+Nunca deixar uma parede externa apenas com a cota geral.
+
+---
+
+# 10. PAREDES INTERNAS
+
+Aplicar exatamente a mesma lógica usada nas paredes externas.
+
+Toda parede interna deve receber:
+
+* cota total;
+* subcotas.
+
+---
+
+# 11. QUALIDADE
+
+Priorizar sempre uma cotagem semelhante aos projetos estruturais profissionais.
+
+O resultado esperado é:
+
+* nenhuma parede sem cota;
+* nenhuma janela sem cota;
+* nenhuma porta sem cota;
+* todos os encontros cotados;
+* mudanças de espessura cotadas;
+* paredes internas cotadas;
+* paredes externas cotadas;
+* sem cotas duplicadas;
+* sem poluição visual;
+* mantendo o layout atual do plugin.
+
+---
+
+# IMPORTANTE
+
+* Não reescrever o projeto.
+* Não criar um novo algoritmo do zero.
+* Reutilizar o máximo possível das funções existentes.
+* Modificar apenas a lógica responsável por encontrar referências e gerar as tarefas de cotagem.
+* Preservar toda a compatibilidade com o restante do plugin.
+* O código final deve ser uma evolução do código atual, e não uma implementação completamente nova.
