@@ -51,7 +51,8 @@ class Config(object):
     GAP_NIVEL_CM         = 20.0   # espacamento entre niveis de linha (0->1->2)
     GAP_GERAL_CM         = 80.0   # afastamento extra da cota GERAL (nivel 3)
     MARGEM_PONTA_CM      = 20.0   # quanto a linha de cota estica alem das pontas
-    SUBCOTA_MIN_SEGMENTO_CM = 20.0 # evita segmentos pequenos/repetidos tipo espessura 10
+    SUBCOTA_MIN_SEGMENTO_CM = 12.0 # evita segmentos pequenos/repetidos tipo espessura 10
+    SUBCOTA_FACE_INTERNA_MAX_CM = 25.0 # ate aqui considera face interna da ponta
 
     # [v1.2] Cruzamentos perpendiculares (sub-cotas dentro da corrente)
     TOL_CRUZAMENTO_EXTENSAO_CM = 5.0    # quanto o cruzamento pode "estourar" a
@@ -91,6 +92,7 @@ class Tolerancias(object):
         self.gap_geral     = to_ft(Config.GAP_GERAL_CM * f)
         self.margem_ponta  = to_ft(Config.MARGEM_PONTA_CM * f)
         self.subcota_min_segmento = to_ft(Config.SUBCOTA_MIN_SEGMENTO_CM)
+        self.subcota_face_interna_max = to_ft(Config.SUBCOTA_FACE_INTERNA_MAX_CM)
         # cruzamento nao escala com a vista - e' geometria real do modelo
         self.tol_cruzamento_extensao = to_ft(Config.TOL_CRUZAMENTO_EXTENSAO_CM)
         self.largura_cruzamento_padrao = to_ft(Config.LARGURA_CRUZAMENTO_PADRAO_CM)
@@ -159,24 +161,7 @@ def filtrar_elementos_cotaveis(elementos):
 # ============================================================
 # ETAPA 1 - Coleta de elementos (selecao ou automatica na view inteira)
 # ============================================================
-def coletar_elementos(view):
-    sel_ids = list(uidoc.Selection.GetElementIds())
-
-    if sel_ids:
-        elementos = []
-        for eid in sel_ids:
-            el = doc.GetElement(eid)
-            if el is not None and el.Category is not None:
-                elementos.append(el)
-        elementos = filtrar_elementos_cotaveis(elementos)
-        output.print_md(
-            "## Cotar Parede Completo - **{} elemento(s) selecionado(s)**".format(len(elementos))
-        )
-        return elementos
-
-    # Nada selecionado -> "vasculha tudo": coleta as categorias relevantes
-    # visiveis na propria view ativa.
-    output.print_md("## Cotar Parede Completo - nenhuma selecao, coletando a view inteira...")
+def coletar_elementos_da_view(view):
     filtros = [ElementCategoryFilter(c) for c in Config.CATEGORIAS_AUTO]
     or_filter = filtros[0]
     for f in filtros[1:]:
@@ -191,7 +176,34 @@ def coletar_elementos(view):
         forms.alert("Falha ao coletar elementos da view:\n{}".format(e), exitscript=True)
         return []
 
-    elementos = filtrar_elementos_cotaveis([el for el in elementos if el.Category is not None])
+    return filtrar_elementos_cotaveis([el for el in elementos if el.Category is not None])
+
+
+def coletar_elementos(view):
+    sel_ids = list(uidoc.Selection.GetElementIds())
+
+    if sel_ids:
+        elementos = []
+        for eid in sel_ids:
+            el = doc.GetElement(eid)
+            if el is not None and el.Category is not None:
+                elementos.append(el)
+        elementos = filtrar_elementos_cotaveis(elementos)
+        if elementos:
+            output.print_md(
+                "## Cotar Parede Completo - **{} elemento(s) selecionado(s)**".format(len(elementos))
+            )
+            return elementos
+
+        output.print_md(
+            "## Cotar Parede Completo - selecao atual nao tem elemento cotavel; coletando a view inteira..."
+        )
+        elementos = coletar_elementos_da_view(view)
+    else:
+        # Nada selecionado -> "vasculha tudo": coleta as categorias relevantes
+        # visiveis na propria view ativa.
+        output.print_md("## Cotar Parede Completo - nenhuma selecao, coletando a view inteira...")
+        elementos = coletar_elementos_da_view(view)
 
     if not elementos:
         forms.alert(
@@ -268,7 +280,7 @@ def _obter_host_id(el):
     return None
 
 
-def extrair_faces_referenciaveis(elementos, axis_dir, perp_dir, threshold=0.8):
+def extrair_faces_referenciaveis(elementos, axis_dir, perp_dir, threshold=0.985):
     """Retorna lista de dicts {pos_axis, pos_perp, ref, host_id} para cada
     face plana referenciavel alinhada ao eixo escolhido. Qualquer falha de
     geometria em UM elemento e reportada e pulada - nunca derruba a
@@ -307,6 +319,7 @@ def extrair_faces_referenciaveis(elementos, axis_dir, perp_dir, threshold=0.8):
                     resultado.append({
                         "pos_axis": pos_axis, "pos_perp": pos_perp,
                         "ref": face.Reference, "host_id": host_id,
+                        "normal_axis": 1 if d >= 0 else -1,
                     })
                 except Exception as e:
                     logger.debug("Face ignorada por erro: {}".format(e))
@@ -604,39 +617,53 @@ def coletar_assinaturas_existentes(view):
 def _filtrar_pontos_subcota_parede(pontos, wall_id, p_ini, p_fim, tolz):
     """Limpa a corrente de detalhe de uma parede.
 
-    Mantem as duas pontas da parede, aberturas hospedadas nela e cruzamentos
-    reais no meio. Descarta pontos sem host e pontos grudados nas pontas,
-    que normalmente viram cotas repetidas da espessura da parede (10/12 cm).
+    Quando existem faces internas perto das extremidades, usa essas faces
+    como inicio/fim da sub-cota. Isso gera a cota util (ex.: 750 dentro de
+    770) sem criar os pedacos 10 + 750 + 10.
     """
     lo = min(p_ini["pos_axis"], p_fim["pos_axis"])
     hi = max(p_ini["pos_axis"], p_fim["pos_axis"])
-    candidatos = [p_ini, p_fim]
-
-    for it in pontos:
-        pos = it["pos_axis"]
-        if pos <= lo + tolz.subcota_min_segmento:
-            continue
-        if pos >= hi - tolz.subcota_min_segmento:
-            continue
-        if it["host_id"] is None:
-            continue
-        candidatos.append(it)
-
     ordenados = dedupe_por_posicao(
-        sorted(candidatos, key=lambda t: t["pos_axis"]),
+        sorted([it for it in pontos if it["host_id"] is not None], key=lambda t: t["pos_axis"]),
         tolz.tol_dim_zero
     )
     if len(ordenados) <= 2:
         return ordenados
 
-    limpos = [ordenados[0]]
-    for it in ordenados[1:-1]:
-        if abs(it["pos_axis"] - limpos[-1]["pos_axis"]) < tolz.subcota_min_segmento:
+    inicio = ordenados[0]
+    fim = ordenados[-1]
+
+    for it in ordenados[1:]:
+        dist = it["pos_axis"] - lo
+        if dist > tolz.tol_dim_zero and dist <= tolz.subcota_face_interna_max:
+            inicio = it
+            break
+
+    for it in reversed(ordenados[:-1]):
+        dist = hi - it["pos_axis"]
+        if dist > tolz.tol_dim_zero and dist <= tolz.subcota_face_interna_max:
+            fim = it
+            break
+
+    if inicio["pos_axis"] >= fim["pos_axis"]:
+        return [ordenados[0], ordenados[-1]]
+
+    candidatos = [
+        it for it in ordenados
+        if inicio["pos_axis"] - tolz.tol_dim_zero <= it["pos_axis"] <= fim["pos_axis"] + tolz.tol_dim_zero
+    ]
+
+    if len(candidatos) <= 2:
+        return candidatos
+
+    limpos = [candidatos[0]]
+    for it in candidatos[1:-1]:
+        if abs(it["pos_axis"] - limpos[-1]["pos_axis"]) <= tolz.subcota_min_segmento:
             continue
         limpos.append(it)
 
-    ultimo = ordenados[-1]
-    if abs(ultimo["pos_axis"] - limpos[-1]["pos_axis"]) < tolz.subcota_min_segmento:
+    ultimo = candidatos[-1]
+    if abs(ultimo["pos_axis"] - limpos[-1]["pos_axis"]) <= tolz.subcota_min_segmento:
         if len(limpos) > 1:
             limpos.pop()
     limpos.append(ultimo)
@@ -693,18 +720,24 @@ def gerar_tarefas_de_cota(correntes, itens_todos, tolz):
             pontos_sub = _filtrar_pontos_subcota_parede(
                 pontos_sub, wid, p_ini, p_fim, tolz
             )
-            tem_detalhe = len(pontos_sub) > 2
+            tem_subcota = (
+                len(pontos_sub) >= 2 and (
+                    len(pontos_sub) > 2 or
+                    abs(pontos_sub[0]["pos_axis"] - p_ini["pos_axis"]) > tolz.tol_dim_zero or
+                    abs(pontos_sub[-1]["pos_axis"] - p_fim["pos_axis"]) > tolz.tol_dim_zero
+                )
+            )
 
             # Rotina por parede: cota a parede inteira e, em seguida,
             # cria uma corrente unica com todas as sub-cotas dela.
             tarefas.append({
                 "nome": "parede_total",
                 "itens": [p_ini, p_fim],
-                "perp_ref": c["perp"], "nivel": 1 if tem_detalhe else 0,
+                "perp_ref": c["perp"], "nivel": 1 if tem_subcota else 0,
                 "perimetro": perimetro,
             })
 
-            if tem_detalhe:
+            if tem_subcota:
                 tarefas.append({
                     "nome": "vaos",
                     "itens": pontos_sub,
@@ -719,6 +752,17 @@ def gerar_tarefas_de_cota(correntes, itens_todos, tolz):
                     "itens": itens_c,
                     "perp_ref": c["perp"], "nivel": 0, "perimetro": perimetro,
                 })
+
+        # Cotas grandes internas: quando o alinhamento tem paredes internas,
+        # cria uma cota total da fileira dentro da planta. Para perimetro,
+        # evita repetir a cota externa da propria parede.
+        if paredes_na_corrente and not perimetro and len(itens_c) >= 2:
+            tarefas.append({
+                "nome": "alinhamento_total",
+                "itens": [itens_c[0], itens_c[-1]],
+                "perp_ref": c["perp"], "nivel": 2,
+                "perimetro": perimetro,
+            })
 
         # Sem paredes identificaveis: usa uma unica cota de alinhamento.
         if not paredes_na_corrente:
@@ -915,37 +959,39 @@ def _cria_dim_line(axis, perp, itens, perp_pos, margem):
 def criar_cotas_no_revit(tarefas, view, axis, perp, tolz, dim_type):
     criadas, erros = 0, 0
     por_nome = {}
-    with revit.Transaction("Cotar Parede Completo"):
-        for t in tarefas:
-            try:
-                dim_line = _cria_dim_line(axis, perp, t["itens"], t["perp_pos"], tolz.margem_ponta)
-                if dim_line is None:
-                    logger.debug("Linha degenerada para tarefa '{}' - pulada.".format(t["nome"]))
-                    continue
+    for t in tarefas:
+        try:
+            axis_t = t.get("_axis", axis)
+            perp_t = t.get("_perp", perp)
+            dim_line = _cria_dim_line(axis_t, perp_t, t["itens"], t["perp_pos"], tolz.margem_ponta)
+            if dim_line is None:
+                logger.debug("Linha degenerada para tarefa '{}' - pulada.".format(t["nome"]))
+                continue
 
-                ra = ReferenceArray()
-                valido = True
-                for it in t["itens"]:
-                    if it["ref"] is None:
-                        valido = False
-                        break
-                    ra.Append(it["ref"])
-                if not valido:
-                    output.print_md("[ERRO] tarefa '{}': referencia ausente, pulando.".format(t["nome"]))
-                    erros += 1
-                    continue
+            ra = ReferenceArray()
+            valido = True
+            for it in t["itens"]:
+                if it["ref"] is None:
+                    valido = False
+                    break
+                ra.Append(it["ref"])
+            if not valido:
+                output.print_md("[ERRO] tarefa '{}': referencia ausente, pulando.".format(t["nome"]))
+                erros += 1
+                continue
 
+            with revit.Transaction("Cotar Parede Completo - {}".format(t["nome"])):
                 nd = doc.Create.NewDimension(view, dim_line, ra)
                 if dim_type:
                     try:
                         nd.DimensionType = dim_type
                     except Exception as e:
                         logger.debug("Falha ao aplicar DimensionType: {}".format(e))
-                criadas += 1
-                por_nome[t["nome"]] = por_nome.get(t["nome"], 0) + 1
-            except Exception as e:
-                erros += 1
-                output.print_md("[ERRO] falha ao criar cota '{}': {}".format(t.get("nome", "?"), e))
+            criadas += 1
+            por_nome[t["nome"]] = por_nome.get(t["nome"], 0) + 1
+        except Exception as e:
+            erros += 1
+            output.print_md("[ERRO] falha ao criar cota '{}': {}".format(t.get("nome", "?"), e))
     return criadas, erros, por_nome
 
 
@@ -989,6 +1035,134 @@ def processar_eixo(elementos, view, axis, perp, nome_eixo, tolz, assinaturas_exi
     return tarefas
 
 
+def _direcao_parede_reta(wall):
+    linha = _linha_da_parede(wall)
+    if linha is None:
+        return None
+    p0, p1 = linha
+    d = XYZ(p1.X - p0.X, p1.Y - p0.Y, 0.0)
+    if d.GetLength() < 1e-6:
+        return None
+    return d.Normalize()
+
+
+def _parede_fora_hv(wall, axis_h, axis_v):
+    d = _direcao_parede_reta(wall)
+    if d is None:
+        return False
+    return abs(dot(d, axis_h)) < 0.985 and abs(dot(d, axis_v)) < 0.985
+
+
+def _elementos_da_parede(elementos, wall_id):
+    relacionados = []
+    for el in elementos:
+        if el.Id.IntegerValue == wall_id:
+            relacionados.append(el)
+            continue
+        if _obter_host_id(el) == wall_id:
+            relacionados.append(el)
+    return relacionados
+
+
+def processar_paredes_inclinadas(elementos, view, axis_h, axis_v, tolz, assinaturas_existentes, paredes_exteriores):
+    """Cota paredes que nao estao alinhadas ao H/V da vista.
+
+    A rotina principal trabalha em dois eixos globais. Paredes inclinadas
+    precisam de eixo proprio para que as referencias fiquem paralelas e para
+    nao sumirem quando o filtro de paralelismo fica rigoroso.
+    """
+    paredes = [el for el in elementos if isinstance(el, Wall) and _parede_fora_hv(el, axis_h, axis_v)]
+    if not paredes:
+        return []
+
+    output.print_md("### Paredes inclinadas")
+    tarefas = []
+
+    for wall in paredes:
+        wid = wall.Id.IntegerValue
+        eixo = _direcao_parede_reta(wall)
+        if eixo is None:
+            continue
+        perp = XYZ(-eixo.Y, eixo.X, 0.0)
+        relacionados = _elementos_da_parede(elementos, wid)
+        faces_parede = extrair_faces_referenciaveis([wall], eixo, perp, threshold=0.985)
+        faces_todas = extrair_faces_referenciaveis(relacionados, eixo, perp, threshold=0.985)
+        faces_eixo_modelo = extrair_faces_referenciaveis(elementos, eixo, perp, threshold=0.985)
+
+        try:
+            cruzamentos = _cruzamentos_perpendiculares(
+                wall, [el for el in elementos if isinstance(el, Wall)], perp, tolz.tol_cruzamento_extensao
+            )
+        except Exception as e:
+            logger.debug("Falha ao buscar cruzamentos inclinados da parede {}: {}".format(wid, e))
+            cruzamentos = []
+
+        for w_cruz, ponto in cruzamentos:
+            pos_axis_cruz = dot(ponto, eixo)
+            candidatos = [it for it in faces_eixo_modelo if it["host_id"] == w_cruz.Id.IntegerValue]
+            if not candidatos:
+                continue
+            melhor = min(candidatos, key=lambda it: abs(it["pos_axis"] - pos_axis_cruz))
+            try:
+                limite = w_cruz.Width * Config.FATOR_LARGURA_CRUZAMENTO
+            except Exception:
+                limite = tolz.largura_cruzamento_padrao
+            if abs(melhor["pos_axis"] - pos_axis_cruz) <= limite:
+                faces_todas.append(melhor)
+
+        faces_parede = dedupe_por_posicao(sorted(faces_parede, key=lambda t: t["pos_axis"]), tolz.tol_dim_zero)
+        faces_todas = dedupe_por_posicao(sorted(faces_todas, key=lambda t: t["pos_axis"]), tolz.tol_dim_zero)
+        if len(faces_parede) < 2:
+            continue
+
+        p_ini, p_fim = faces_parede[0], faces_parede[-1]
+        pontos_sub = _filtrar_pontos_subcota_parede(faces_todas, wid, p_ini, p_fim, tolz)
+        tem_subcota = (
+            len(pontos_sub) >= 2 and (
+                len(pontos_sub) > 2 or
+                abs(pontos_sub[0]["pos_axis"] - p_ini["pos_axis"]) > tolz.tol_dim_zero or
+                abs(pontos_sub[-1]["pos_axis"] - p_fim["pos_axis"]) > tolz.tol_dim_zero
+            )
+        )
+
+        perps_parede = [it["pos_perp"] for it in faces_parede]
+        meio = sum(perps_parede) / len(perps_parede)
+        centro_perp_modelo = (
+            sum(t["pos_perp"] for t in faces_eixo_modelo) / len(faces_eixo_modelo)
+            if faces_eixo_modelo else meio
+        )
+        sinal = 1.0 if meio >= centro_perp_modelo else -1.0
+        extremo = max(perps_parede) if sinal > 0 else min(perps_parede)
+
+        total = {
+            "nome": "parede_total",
+            "itens": [p_ini, p_fim],
+            "perp_ref": meio,
+            "perp_pos": extremo + sinal * (tolz.cola_elemento + (tolz.gap_nivel if tem_subcota else 0.0)),
+            "nivel": 1 if tem_subcota else 0,
+            "perimetro": wid in paredes_exteriores,
+            "_axis": eixo,
+            "_perp": perp,
+        }
+        tarefas.append(total)
+
+        if tem_subcota:
+            tarefas.append({
+                "nome": "vaos",
+                "itens": pontos_sub,
+                "perp_ref": meio,
+                "perp_pos": extremo + sinal * tolz.cola_elemento,
+                "nivel": 0,
+                "perimetro": wid in paredes_exteriores,
+                "_axis": eixo,
+                "_perp": perp,
+            })
+
+    tarefas = remover_tarefas_duplicadas(tarefas, assinaturas_existentes)
+    output.print_md("  {} tarefa(s) montada(s) para parede(s) inclinada(s).".format(len(tarefas)))
+    return tarefas
+
+
 def main():
     view = doc.ActiveView
 
@@ -1026,8 +1200,11 @@ def main():
 
     tarefas_h = processar_eixo(elementos, view, axis_h, perp_h, "Horizontal", tolz, assinaturas_existentes, paredes_exteriores)
     tarefas_v = processar_eixo(elementos, view, axis_v, perp_v, "Vertical", tolz, assinaturas_existentes, paredes_exteriores)
+    tarefas_inclinadas = processar_paredes_inclinadas(
+        elementos, view, axis_h, axis_v, tolz, assinaturas_existentes, paredes_exteriores
+    )
 
-    todas_tarefas = tarefas_h + tarefas_v
+    todas_tarefas = tarefas_h + tarefas_v + tarefas_inclinadas
     if not todas_tarefas:
         forms.alert(
             "Nao foi possivel montar nenhuma tarefa de cota valida (H ou V).\n"
@@ -1041,7 +1218,11 @@ def main():
 
         # Cria por eixo (cada chamada abre/fecha sua propria transacao
         # curta - assim um erro de commit num eixo nao contamina o outro).
-        for nome_eixo, tarefas_eixo in (("Horizontal", tarefas_h), ("Vertical", tarefas_v)):
+        for nome_eixo, tarefas_eixo in (
+            ("Horizontal", tarefas_h),
+            ("Vertical", tarefas_v),
+            ("Paredes inclinadas", tarefas_inclinadas),
+        ):
             if not tarefas_eixo:
                 continue
             axis_ref = tarefas_eixo[0]["_axis"]
