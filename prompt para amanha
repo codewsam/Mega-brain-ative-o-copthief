@@ -1,9 +1,3 @@
-eu quero que vc melhore esse codigo do plugin de cotas no revit
+vc pode pegar esse codigo e melhorar para ele criar mais cotas? siga o padrao dele, eu só quero que melhore, por exemplo na view forma do terreo se vc ve ele nn gerou em algumas paredes, siga o padrao> cota a parede inteira> cota o reboque (sub-cotas) os pedacinhos dentro dess parede, e gere eles igual ta gerando ai no lado de fora para nn ficar bagunçado
 
-vc ve que ele cota a parede inteira dps faz "sub-cotas" da mesma parede? eu quero que ele faça isso, se vc observar o codigo ja faz isso um pouco, mas as vezes ele esquece de alguma parede
-
-outra coisa: tente posicionar essas cotas em local organizado, de preferencia proximo do lado de fora da parede que ta cotando tipo o posicionamento dessa q tem 650 e 511
-
-tente seguir uma rotina de >parede>cota parede inteira>faz todas as sub cotas> proxima parede e repete e dps vc parede para as cotas de dentro da planta baixa
-
-lembre das cotas da parede ficar desse jeito ai no lado de fora da planta baixa
+quando termianr me envie o codigo aqui para eu testar
