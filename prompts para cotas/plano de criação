@@ -1,0 +1,116 @@
+Agora os Models e Utils:# Revisão de arquitetura — `Cotas` (G3Plugins)
+
+Analisei os 21 arquivos do zip. Segue a revisão completa, sem nenhuma alteração de código ainda.
+
+## 1. Pontos fracos da implementação atual
+
+**`WallAnalyzer.BuildAlignment`**
+- Só caminha parede-a-parede por *endpoint touching*: se uma parede perpendicular "corta" o alinhamento num nó (T ou X), a cadeia para ali, mesmo que a parede colinear continue do outro lado do nó.
+- Não distingue tipos de encontro (L, T, cruzamento, continuação reta) — trata tudo como "parede colinear seguinte" ou ignora.
+- Não considera pilares nem shafts como pontos de interrupção — eles simplesmente não existem para o algoritmo.
+- Não detecta mudança de espessura entre paredes consecutivas do mesmo alinhamento.
+- Busca candidatas com `FilteredElementCollector` varrendo **todas** as paredes da vista a cada chamada — sem filtro espacial (bounding box), o que não escala em plantas grandes.
+
+**`IntersectionFinder`**
+- Calcula o "ponto de encontro" só pela menor distância entre endpoints de duas paredes **consecutivas na cadeia já montada** — não there's nenhuma classificação de tipo de nó (L/T/X), e não olha para paredes fora da cadeia que cheguem no mesmo ponto (ex.: uma parede perpendicular formando T).
+
+**`OpeningFinder`**
+- Só varre `OST_Doors` e `OST_Windows`. Pilares (`OST_StructuralColumns`/`OST_Columns`) e shafts (`OST_ShaftOpening`) não são pesquisados.
+- Estrutura já é boa (retorna `OpeningInfo` com start/end), mas está hardcoded para duas categorias — não é extensível sem editar o próprio método.
+
+**`ReferenceCollector`**
+- Dedup e prioridade funcionam bem, mas o modelo de saída é uma lista **plana** — não há noção de "nível" (interna/intermediária/externa). Isso está sendo decidido depois, de forma rígida, no `ChainBuilder`.
+
+**`ChainBuilder`**
+- Gera só **dois** `ReferenceArray` fixos: "Detalhe" (tudo) e "Total" (duas pontas). Não existe conceito de 3 níveis, nem de múltiplos segmentos por nível (por exemplo, quando duas paredes paralelas deveriam gerar duas cadeias de detalhe separadas).
+
+**`OffsetCalculator`**
+- Offsets são **constantes fixas em cm** (20/60), sem relação com a escala da vista — em 1:100 uma cota de 20cm de afastamento visual fica apertada; em 1:25 fica exagerada.
+- O "lado externo" é decidido por um heurística frágil: média perpendicular de **todas** as paredes do contexto vs. a posição do alinhamento. Em uma planta não-convexa como a do seu PDF (com reentrâncias, canto arredondado/diagonal no topo), essa média pode cair do lado errado facilmente.
+- Só sabe posicionar 2 linhas (detalhe/total) — não generaliza para N níveis.
+
+**`DimensionCreator`**
+- Cria exatamente 2 `Dimension`. Não tem noção de anti-sobreposição real (a não-sobreposição hoje só existe porque só há 2 offsets fixos e distintos) nem de múltiplos alinhamentos por execução.
+
+**`DimensionWallCommand`**
+- Orquestra tudo diretamente no `Execute` — command "gordo". Funciona hoje porque o fluxo é simples (1 parede → 1 alinhamento → 2 cotas), mas não escala para o novo escopo (múltiplos níveis, múltiplos alinhamentos paralelos).
+
+## 2. Responsabilidades misturadas
+
+- `WallAnalyzer` mistura **descoberta topológica** (quem está conectado a quem) com **decisão de direção do eixo** — está ok hoje, mas quando entrar classificação de nós (L/T/X), isso deveria virar uma responsabilidade própria, não um `if` a mais dentro do `while` de expansão.
+- `OffsetCalculator` mistura **cálculo de layout geométrico** (linhas 3D) com **decisão de lado da fachada** (qual heurística usar) — são duas responsabilidades que hoje vivem no mesmo método (`CalcularLayout` + `CalcularCentroPerpendicular`).
+- `DimensionWallCommand` mistura **interação com o usuário** (seleção, TaskDialog) com **orquestração do pipeline completo** de geometria e criação de cotas. Isso precisa virar: Command fino (UI) → Serviço de orquestração (pipeline).
+- Não existe hoje nenhuma camada que decida "isso é nível interno, intermediário ou externo" — essa é uma responsabilidade nova que precisa nascer separada tanto da coleta de referências quanto da criação das cotas.
+
+## 3. Novos serviços propostos
+
+Mantendo as pastas atuais (`GeometryServices`, `DimensionsServices`, `Models`, `Utils`), sem tocar em `Application`/Ribbon:
+
+**GeometryServices**
+- `WallTopologyGraph` (novo) — constrói grafo de nós (pontos snapados por tolerância) e arestas (paredes). Substitui a expansão ingênua do `WallAnalyzer` por travessia de grafo, permitindo atravessar nós com 3+ conexões (T/X) desde que a direção colinear continue do outro lado.
+- `JunctionClassifier` (novo) — classifica cada nó do grafo em `Continuacao`, `L`, `T`, `Cruzamento`, `Extremidade`, usando grau do nó + produto escalar das direções das paredes conectadas.
+- `ColumnDetector` (novo) — mesmo padrão do `OpeningFinder`, mas para `OST_StructuralColumns`/`OST_Columns` que cruzam o eixo do alinhamento.
+- `ShaftOpeningFinder` (novo) — mesmo padrão, para `OST_ShaftOpening` e aberturas verticais relevantes.
+- `ThicknessChangeDetector` (novo) — compara `WallType.Width` entre paredes consecutivas da cadeia e gera um ponto de referência no ponto de transição.
+- `ParallelAlignmentGrouper` (novo) — dado o conjunto de paredes da vista, agrupa em múltiplos `WallAlignment` (não só o da parede semente), identificando alinhamentos paralelos "relevantes" (mesma direção, faixa de sobreposição no eixo, distância perpendicular dentro de uma faixa configurável) para cotagem conjunta.
+- `OpeningFinder`, `ColumnDetector`, `ShaftOpeningFinder`, `ThicknessChangeDetector` passam a implementar uma interface comum (ex. `IReferenceFinder`) — assim `ReferenceCollector` os agrega por composição, sem precisar mudar quando um novo detector for adicionado (Open/Closed).
+
+**DimensionsServices**
+- `ReferenceLevelClassifier` (novo) — recebe a lista deduplicada/ordenada de `DimensionReferencePoint` (já com os novos tipos: Pilar, Shaft, MudançaEspessura, com a classificação de junção) e separa em 3 níveis (Interna / Intermediária / Externa) conforme as regras que você descreveu.
+- `DimensionLevelBuilder` (substitui/evolui `ChainBuilder`) — para cada nível, monta um ou mais `ReferenceArray` (mais de um quando o nível não forma uma única sequência contínua — ex. dois alinhamentos paralelos).
+- `DynamicOffsetCalculator` (substitui/evolui `OffsetCalculator`) — calcula offset por nível de forma incremental e proporcional à escala da vista (`view.Scale`), decide o lado externo preferencialmente por `Wall.WallType.Function` (Exterior/Interior, quando definido pelo projetista) com fallback para a heurística de centro, e garante espaçamento mínimo entre níveis.
+- `AutoDimensionEngine` (novo, orquestrador) — recebe o pipeline completo (topologia → agrupamento paralelo → coleta de referências por alinhamento → classificação em níveis → layout dinâmico → criação) para que `DimensionWallCommand` fique fino, só cuidando de UI/seleção/transação.
+
+**Models** (adições, sem quebrar os existentes)
+- `DimensionTier` (enum: Interna, Intermediaria, Externa)
+- `JunctionKind` (enum: Continuacao, L, T, Cruzamento) — novo campo em `DimensionReferencePoint` ou objeto próprio `JunctionInfo`
+- `ReferencePointType` ganha: `Pilar`, `AberturaShaft`, `MudancaEspessura`
+- `DimensionLevelSet` — substitui `DimensionChains`, guardando `Dictionary<DimensionTier, List<ReferenceArray>>`
+
+## 4. Algoritmos que devem substituir os atuais
+
+| Hoje | Proposto |
+|---|---|
+| Caminhada linear por endpoint touching | Travessia de grafo topológico (nós + arestas), atravessando nós T/X quando a direção colinear persiste |
+| Ponto de encontro = par mais próximo entre 2 paredes consecutivas | Classificação de nó por grau + ângulo, com registro do tipo (L/T/X/continuação) |
+| Portas/janelas hardcoded | Composição de `IReferenceFinder` (portas, janelas, pilares, shafts, mudança de espessura) — extensível sem alterar o `ReferenceCollector` |
+| Lado externo por média de todas as paredes do modelo | `Wall.Function` (Exterior/Interior) como fonte primária, heurística de centro como fallback |
+| Offset fixo em cm | Offset proporcional a `view.Scale`, incremental por nível, com espaçamento mínimo garantido |
+| 2 cotas fixas (detalhe/total) | N `ReferenceArray` por nível (podendo ser múltiplos por nível), criadas em lote numa única transação |
+| 1 parede → 1 alinhamento | 1 parede semente → alinhamento próprio + alinhamentos paralelos relevantes agrupados pelo `ParallelAlignmentGrouper` |
+
+## 5. Arquitetura proposta (fluxo do novo algoritmo)
+
+```
+DimensionWallCommand (UI, seleção, transação)
+        │
+        ▼
+AutoDimensionEngine.Run(doc, view, paredeSelecionada)
+        │
+        ├─ WallTopologyGraph.Build(view)          → grafo de nós/arestas
+        ├─ WallAnalyzer.BuildAlignment(grafo)      → alinhamento da parede semente (via grafo)
+        ├─ JunctionClassifier.Classify(grafo)      → tipo de cada nó do alinhamento
+        ├─ ParallelAlignmentGrouper.FindRelated()  → outros alinhamentos paralelos relevantes (opcional)
+        │
+        └─ Para cada WallAlignment relevante:
+              ├─ ReferenceCollector.CollectChain()
+              │     ├─ OpeningFinder      (portas/janelas)
+              │     ├─ ColumnDetector     (pilares)
+              │     ├─ ShaftOpeningFinder (shafts)
+              │     └─ ThicknessChangeDetector
+              ├─ ReferenceLevelClassifier.Split()   → 3 níveis
+              ├─ DimensionLevelBuilder.Build()      → ReferenceArrays por nível
+              ├─ DynamicOffsetCalculator.Layout()   → linhas 3D por nível, sem sobreposição
+              └─ DimensionCreator.CriarCotas()      → grava no Revit (1 transação para tudo)
+```
+
+`DimensionWallCommand` continua responsável só por: pegar a seleção do usuário, validar a vista (já corrigido) e chamar `AutoDimensionEngine`. Nenhuma lógica de UI muda.
+
+## Observação sobre escopo
+
+O `ParallelAlignmentGrouper` (cotagem de várias paredes paralelas na mesma execução) é a peça mais arriscada — a heurística de "quando faz sentido" agrupar pode gerar falso positivo em plantas com muitos ambientes próximos. Dado que você prefere desenvolvimento incremental com teste ao vivo antes de expandir escopo, sugiro dividir a entrega em fases:
+
+1. **Fase 1** — grafo topológico + classificação de junções (L/T/X) + pilares + shafts + mudança de espessura + 3 níveis de cotagem + offset dinâmico por escala, ainda para **um único alinhamento** (a parede selecionada). Já resolve a maior parte do pedido e é testável isoladamente.
+2. **Fase 2** — `ParallelAlignmentGrouper` (múltiplas paredes paralelas na mesma execução), depois que a Fase 1 estiver validada no Revit.
+
+Quer que eu comece pela Fase 1?
