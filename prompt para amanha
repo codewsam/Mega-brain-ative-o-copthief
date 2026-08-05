@@ -1,297 +1,629 @@
-Segue um prompt completo e refinado para você usar diretamente:
-
----
-
-# PROMPT
-
-Você é um engenheiro especialista em Autodesk Revit API, pyRevit, IronPython e geometria computacional.
-
-O plugin já funciona e NÃO deve ser reescrito.
-
-Quero manter toda a arquitetura atual, incluindo:
-
-* organização do código;
-* nomenclatura;
-* comentários;
-* interface;
-* parâmetros;
-* layout das cotas;
-* espaçamentos;
-* posicionamento das cotas;
-* compatibilidade com Revit;
-* suporte às paredes inclinadas;
-* deduplicação existente (melhorando-a, não removendo).
-
-O objetivo agora é apenas evoluir a inteligência do algoritmo de cotagem.
-
----
-
-# 1. TODA PAREDE DEVE SER COTADA
-
-Nenhuma parede pode ficar sem:
-
-* cota da parede inteira;
-
-e, quando houver detalhes,
-
-* corrente completa de subcotas.
-
-Mesmo que exista somente uma parede naquele alinhamento.
-
-A existência de outras paredes nunca deve ser requisito para cotar uma parede.
-
----
-
-# 2. COTAR PAREDES INTERNAS
-
-Hoje algumas paredes internas ficam sem nenhuma cota.
-
-Criar uma segunda passagem exclusiva para paredes internas.
-
-Fluxo:
-
-```
-Paredes externas
-
-↓
-
-Paredes internas
-
-↓
-
-Cotas gerais
-```
-
-Toda parede interna deve receber:
-
-* cota da parede inteira;
-* subcotas quando houver detalhes.
-
----
-
-# 3. PORTAS E JANELAS
-
-Toda FamilyInstance hospedada em uma parede deve entrar automaticamente na corrente de subcotas.
-
-Não depender apenas das faces encontradas.
-
-Sempre verificar:
-
-```
-FamilyInstance
-
-↓
-
-Host
-
-↓
-
-Parede atual
-
-↓
-
-Adicionar à corrente
-```
-
-Isso vale para qualquer família hospedada.
-
-Exemplos:
-
-* P1
-* P2
-* P3
-* P4
-* P5
-* P6
-
-e
-
-* J1
-* J2
-* J3
-
-e qualquer outra porta ou janela existente.
-
-As cotas devem considerar:
-
-* largura do vão;
-* distância até os cantos;
-* distância até outros elementos.
-
----
-
-# 4. SUBCOTAS COMPLETAS
-
-Depois de localizar a parede, procurar automaticamente:
-
-* portas;
-* janelas;
-* encontros;
-* cruzamentos;
-* mudanças de espessura;
-* rebaixos;
-* reboques;
-* nichos;
-* qualquer face interna relevante.
-
-Ordenar todos os pontos ao longo da parede.
-
-Depois gerar UMA única corrente completa de subcotas.
-
-Exemplo:
-
-```
-|----|------|-----|----|------|
-
-----------------------------
-
-parede inteira
-```
-
----
-
-# 5. HIERARQUIA DE COTAGEM
-
-Sempre seguir exatamente esta ordem:
-
-1. parede inteira
-
-2. portas
-
-3. janelas
-
-4. encontros entre paredes
-
-5. mudanças de espessura
-
-6. rebaixos
-
-7. reboques
-
-8. nichos
-
-9. corrente completa de subcotas
-
-10. cotas de alinhamento
-
-11. cotas gerais
-
-Nunca inverter essa ordem.
-
----
-
-# 6. EVITAR COTAS REPETIDAS
-
-Hoje algumas cotas são criadas duas vezes exatamente no mesmo local.
-
-Melhorar o algoritmo de deduplicação.
-
-Não comparar apenas o valor da dimensão.
-
-Comparar uma assinatura composta por:
-
-* id da parede;
-* referência inicial;
-* referência final;
-* eixo;
-* posição da linha de cota;
-* tipo da cota.
-
-Somente remover uma cota quando TODA essa assinatura for igual.
-
-Nunca remover apenas porque duas cotas possuem o mesmo comprimento.
-
-Exemplo:
-
-100 cm
-
-100 cm
-
-podem existir se estiverem em locais diferentes.
-
-Mas nunca podem existir duas cotas exatamente sobrepostas.
-
----
-
-# 7. AGRUPAMENTO
-
-Cada parede deve ser tratada individualmente.
-
-As correntes devem existir apenas para organizar o posicionamento das linhas.
-
-Nunca usar a corrente para decidir se uma parede será cotada.
-
-A unidade principal do algoritmo passa a ser a parede.
-
----
-
-# 8. BUSCA DE REFERÊNCIAS
-
-Antes de gerar as cotas procurar:
-
-* faces externas;
-* faces internas;
-* faces de portas;
-* faces de janelas;
-* encontros;
-* cruzamentos;
-* mudanças de espessura;
-* nichos;
-* rebaixos;
-* reboques.
-
-Quanto maior a quantidade de referências válidas, melhor será a corrente de subcotas.
-
----
-
-# 9. PAREDES EXTERNAS
-
-Garantir que todas as paredes externas recebam:
-
-* cota total;
-* corrente completa de subcotas.
-
-Mesmo que sejam paredes longas ou isoladas.
-
-Nunca deixar uma parede externa apenas com a cota geral.
-
----
-
-# 10. PAREDES INTERNAS
-
-Aplicar exatamente a mesma lógica usada nas paredes externas.
-
-Toda parede interna deve receber:
-
-* cota total;
-* subcotas.
-
----
-
-# 11. QUALIDADE
-
-Priorizar sempre uma cotagem semelhante aos projetos estruturais profissionais.
-
-O resultado esperado é:
-
-* nenhuma parede sem cota;
-* nenhuma janela sem cota;
-* nenhuma porta sem cota;
-* todos os encontros cotados;
-* mudanças de espessura cotadas;
-* paredes internas cotadas;
-* paredes externas cotadas;
-* sem cotas duplicadas;
-* sem poluição visual;
-* mantendo o layout atual do plugin.
-
----
-
-# IMPORTANTE
-
-* Não reescrever o projeto.
-* Não criar um novo algoritmo do zero.
-* Reutilizar o máximo possível das funções existentes.
-* Modificar apenas a lógica responsável por encontrar referências e gerar as tarefas de cotagem.
-* Preservar toda a compatibilidade com o restante do plugin.
-* O código final deve ser uma evolução do código atual, e não uma implementação completamente nova.
+# -*- coding: utf-8 -*-
+__title__ = "Interna"
+__doc__ = ("SCRIPT 2 (interior, automatico) - FASE 3.\n"
+           "Em cima da Fase 2 (parede paralela mais proxima, H/V, dedup por "
+           "par) - mantida sem alteracao. Roda em QUALQUER parede - drywall "
+           "foi so o exemplo usado pra validar o formato da cota (a 349 que o "
+           "usuario cotou na mao), nao um filtro.\n"
+           "Mudanca desta fase: NOVO - 'linha de corte'. Em vez de cotar so a "
+           "parede paralela mais proxima (afastamento simples), a linha de "
+           "cota agora ATRAVESSA o predio inteiro numa faixa (linha horizontal "
+           "ou vertical), e cada vez que ela bate numa parede interna, cota a "
+           "ESPESSURA dessa parede (as 2 faces dela) e continua ate bater na "
+           "proxima parede - gerando uma cota corrida com varios segmentos "
+           "aninhados (ex.: comodo 30 | parede 10 | comodo 40 | ...), em vez "
+           "de 1 cota isolada por par de parede. Feito nas duas direcoes "
+           "(horizontal e vertical), 1 vez por 'faixa' (fileira ou coluna de "
+           "comodos que o piso ocupa) - nao 1 vez por piso, pra nao duplicar a "
+           "mesma linha de corte quando varios pisos estao na mesma faixa. "
+           "A cadeia NAO ultrapassa a face INTERNA da parede de perimetro em "
+           "cada ponta: so a face mais externa (a de fora da parede de "
+           "contorno) e' cortada da lista antes de criar a cota - a face "
+           "interna da ultima parede continua sendo o limite/witness final da "
+           "cadeia, e toda espessura de parede INTERNA continua sendo cotada "
+           "normalmente. Depende de FOLGA_LINHA_CORTE ser maior que a "
+           "espessura da parede de perimetro pra garantir que as 2 faces dela "
+           "(interna e externa) entrem na busca - se nao entrar, so ha 1 face "
+           "e cortar essa unica referencia cortaria errado 1 segmento interno; "
+           "ajustar FOLGA_LINHA_CORTE se acontecer.\n"
+           "FASE 3.1 (correcao de agrupamento): 'montar_grupos_linha' juntava "
+           "pisos numa mesma faixa por SOBREPOSICAO EM CADEIA (A com B, B com "
+           "C, mas A pode nao sobrepor C) e depois calculava a posicao da "
+           "linha de corte usando a intersecao de TODOS os pisos do grupo. "
+           "Quando o grupo nao tinha uma faixa comum de verdade (so cadeia "
+           "transitiva), a posicao calculada podia cair FORA da faixa real de "
+           "alguns pisos do grupo - a linha de corte saia sem relacao "
+           "nenhuma com aquele piso especifico, mesmo aparecendo colada nos "
+           "outros. Corrigido: o agrupamento agora usa uma 'faixa comum' que "
+           "so ENCOLHE conforme cada piso entra no grupo (min/max acumulado) "
+           "- um piso so entra se ainda sobrar faixa comum de verdade com "
+           "TODOS os que ja estao no grupo, garantindo que a linha de corte "
+           "final sempre passa por cima de cada piso do grupo.\n"
+           "Ainda sem: aberturas (a linha de corte hoje ignora porta/vao - se "
+           "a linha passar por um vao sem parede ali, o segmento so vai contar "
+           "com o que tiver referencia real), cruzamento perpendicular, dedup "
+           "contra cota ja existente manualmente no modelo.")
+
+from Autodesk.Revit.DB import (
+    FilteredElementCollector, Options, Solid, PlanarFace,
+    XYZ, Line, ReferenceArray, DimensionType, DimensionStyleType,
+    Wall, Floor, Transaction, ElementId
+)
+from pyrevit import revit, forms, script
+
+doc = revit.doc
+uidoc = revit.uidoc
+output = script.get_output()
+
+TOL_DEDUP = 0.05  # pes (~1.5cm) - faces praticamente no mesmo lugar
+FOLGA_LINHA_CORTE = 2.0  # pes - quanto a faixa de busca estende alem dos pisos do grupo
+EIXO_X = XYZ(1.0, 0.0, 0.0)
+EIXO_Y = XYZ(0.0, 1.0, 0.0)
+
+
+# ============================================================
+# 1) Extracao generica de faces referenciaveis alinhadas a um eixo
+# ============================================================
+def extrair_faces_da_parede(elementos, eixo, perp, threshold=0.985):
+    """Pra cada elemento (parede, piso...), acha as faces planas
+    referenciaveis cuja normal esta alinhada com 'eixo' - ou seja,
+    faces perpendiculares a direcao passada: chamada com (eixo_da_
+    parede, perp) acha as faces de PONTA da parede; chamada com (perp,
+    eixo) - trocado - acha as faces LONGAS (internas/externas), usadas
+    pra medir afastamento entre paredes paralelas ou pra montar a linha
+    de corte (Fase 3)."""
+    opt = Options()
+    opt.ComputeReferences = True
+    resultado = []
+    for el in elementos:
+        try:
+            geom = el.get_Geometry(opt)
+        except Exception:
+            continue
+        if geom is None:
+            continue
+        for g in geom:
+            if not isinstance(g, Solid) or g.Volume <= 0:
+                continue
+            try:
+                faces = g.Faces
+            except Exception:
+                continue
+            for face in faces:
+                if not isinstance(face, PlanarFace) or face.Reference is None:
+                    continue
+                n = face.FaceNormal
+                d = n.X * eixo.X + n.Y * eixo.Y
+                if abs(d) < threshold:
+                    continue
+                pos_axis = face.Origin.X * eixo.X + face.Origin.Y * eixo.Y
+                pos_perp = face.Origin.X * perp.X + face.Origin.Y * perp.Y
+                resultado.append({"pos_axis": pos_axis, "pos_perp": pos_perp,
+                                   "face": face, "el_id": el.Id.IntegerValue})
+    return resultado
+
+
+def dedupe_por_posicao(itens, tol):
+    """itens ordenados por pos_axis - remove faces praticamente no mesmo
+    lugar (mesma posicao ao longo do eixo). NAO mescla as 2 faces de uma
+    mesma parede: elas ficam a 1 espessura de distancia uma da outra,
+    bem acima de 'tol' - e' exatamente isso que faz aparecer o segmento
+    de espessura da parede na cota corrida."""
+    if not itens:
+        return []
+    aceitos = [itens[0]]
+    for it in itens[1:]:
+        if abs(it["pos_axis"] - aceitos[-1]["pos_axis"]) > tol:
+            aceitos.append(it)
+    return aceitos
+
+
+# ============================================================
+# 2) Parede PARALELA mais proxima (largura de comodo/corredor)
+#   - mesma ideia da cota temporaria que o Revit sugere quando voce
+#     seleciona uma parede perto de outra paralela. Nao existe API pra
+#     ler a cota temporaria em si (documentado pela Autodesk: "Temporary
+#     dimensions created while editing an element in the UI are not
+#     accessible") - entao a logica e' refeita na mao aqui.
+# ============================================================
+def _overlap(lo1, hi1, lo2, hi2):
+    return max(0.0, min(hi1, hi2) - max(lo1, lo2))
+
+
+def parede_paralela_mais_proxima(wall, todas_paredes, eixo, perp, lo, hi):
+    """Entre 'todas_paredes', acha as paredes PARALELAS (mesma direcao de
+    eixo) cuja faixa ao longo do eixo se sobrepoe com a desta parede
+    (elas "correm lado a lado", tipo as duas paredes de um corredor ou
+    comodo). Retorna lista de (parede, pos_perp_dela, lo2, hi2)."""
+    candidatos = []
+    for w in todas_paredes:
+        if w.Id.IntegerValue == wall.Id.IntegerValue:
+            continue
+        curve2 = getattr(w.Location, "Curve", None)
+        if curve2 is None or not isinstance(curve2, Line):
+            continue
+        q0, q1 = curve2.GetEndPoint(0), curve2.GetEndPoint(1)
+        d2 = XYZ(q1.X - q0.X, q1.Y - q0.Y, 0.0)
+        if d2.GetLength() < 1e-6:
+            continue
+        d2n = d2.Normalize()
+        # so interessa parede realmente PARALELA (mesma direcao do eixo)
+        if abs(d2n.X * eixo.X + d2n.Y * eixo.Y) < 0.99:
+            continue
+
+        lo2 = min(q0.X * eixo.X + q0.Y * eixo.Y, q1.X * eixo.X + q1.Y * eixo.Y)
+        hi2 = max(q0.X * eixo.X + q0.Y * eixo.Y, q1.X * eixo.X + q1.Y * eixo.Y)
+        sobreposicao_min = 0.3 * min(hi - lo, hi2 - lo2) if min(hi - lo, hi2 - lo2) > 0 else 0.0
+        if _overlap(lo, hi, lo2, hi2) < max(sobreposicao_min, TOL_DEDUP):
+            continue
+
+        pos_perp2 = q0.X * perp.X + q0.Y * perp.Y
+        candidatos.append((w, pos_perp2, lo2, hi2))
+
+    return candidatos
+
+
+def montar_cota_parede_paralela(wall, todas_paredes, eixo, perp, lo, hi, pos_perp_parede):
+    """Monta a referencia pra uma cota de afastamento entre esta parede e
+    a parede paralela mais proxima (largura de comodo/corredor).
+    Retorna (face_esta, face_prox, meio_eixo, w_prox) ou None se nao
+    achar par valido."""
+    candidatos = parede_paralela_mais_proxima(wall, todas_paredes, eixo, perp, lo, hi)
+    if not candidatos:
+        return None
+
+    w_prox, pos_perp2, lo2, hi2 = min(candidatos, key=lambda c: abs(c[1] - pos_perp_parede))
+    if abs(pos_perp2 - pos_perp_parede) < TOL_DEDUP:
+        return None
+
+    meio_eixo = (max(lo, lo2) + min(hi, hi2)) / 2.0
+
+    # extrai as faces LONGAS (normal ~ perp) trocando a ordem dos
+    # parametros de extrair_faces_da_parede - ver docstring dela.
+    faces_proxima = extrair_faces_da_parede([w_prox], perp, eixo, threshold=0.90)
+    if not faces_proxima:
+        return None
+    face_prox = min(faces_proxima, key=lambda f: abs(f["pos_axis"] - pos_perp_parede))
+
+    faces_esta = extrair_faces_da_parede([wall], perp, eixo, threshold=0.90)
+    if not faces_esta:
+        return None
+    face_esta = min(faces_esta, key=lambda f: abs(f["pos_axis"] - pos_perp2))
+
+    if abs(face_esta["pos_axis"] - face_prox["pos_axis"]) < TOL_DEDUP:
+        return None
+
+    return face_esta, face_prox, meio_eixo, w_prox
+
+
+# ============================================================
+# 3) Filtro minimo de validade da parede
+# ============================================================
+def parede_reta_valida(wall, comp_min=0.1):
+    """So parede com Location.Curve reta (Line) e comprimento minimo -
+    pula parede curva (arco), parede cortina sem Location.Curve, ou
+    parede-toco de comprimento quase zero (geram linha de cota
+    degenerada, e o Revit recusa atribuir o DimensionType).
+    comp_min = 0.1 pe (~3cm) - abaixo disso considera residual."""
+    curve = getattr(wall.Location, "Curve", None)
+    if curve is None or not isinstance(curve, Line):
+        return False
+    p0, p1 = curve.GetEndPoint(0), curve.GetEndPoint(1)
+    comp = XYZ(p1.X - p0.X, p1.Y - p0.Y, 0.0).GetLength()
+    if comp < comp_min:
+        return False
+    return True
+
+
+# ============================================================
+# 4) Extremos de UMA parede (so o que a cota de parede paralela precisa)
+# ============================================================
+def extremos_da_parede(wall):
+    """Retorna (p_ini, p_fim, eixo, perp) - as duas faces de PONTA da
+    propria parede, e os vetores eixo/perp dela. Retorna (None, None,
+    eixo, perp) se a parede nao tiver 2 faces de ponta."""
+    curve = wall.Location.Curve
+    p0, p1 = curve.GetEndPoint(0), curve.GetEndPoint(1)
+    eixo = XYZ(p1.X - p0.X, p1.Y - p0.Y, 0.0).Normalize()
+    perp = XYZ(-eixo.Y, eixo.X, 0.0)
+
+    pontas = extrair_faces_da_parede([wall], eixo, perp, threshold=0.985)
+    pontas = dedupe_por_posicao(sorted(pontas, key=lambda t: t["pos_axis"]), TOL_DEDUP)
+    if len(pontas) < 2:
+        return None, None, eixo, perp
+    return pontas[0], pontas[-1], eixo, perp
+
+
+# ============================================================
+# 5) Criar a cota (2 referencias - usada nas paredes paralelas)
+# ============================================================
+def _criar_dimension(view, p0, p1, perp, offset, pontos, dim_type):
+    linha = Line.CreateBound(
+        XYZ(p0.X + perp.X * offset, p0.Y + perp.Y * offset, p0.Z),
+        XYZ(p1.X + perp.X * offset, p1.Y + perp.Y * offset, p1.Z),
+    )
+    ra = ReferenceArray()
+    for pt in pontos:
+        ra.Append(pt["face"].Reference)
+    nd = doc.Create.NewDimension(view, linha, ra)
+    if dim_type:
+        try:
+            nd.DimensionType = dim_type
+        except Exception:
+            # achado testando ao vivo: o primeiro DimensionType "Linear" que
+            # o coletor acha pode nao ser atribuivel (da "Dimension type is
+            # not valid for this dimension"). Se isso acontecer, mantem o
+            # tipo padrao que o Revit ja atribuiu na criacao (na pratica, o
+            # ultimo tipo linear usado no documento) em vez de derrubar a
+            # cota inteira.
+            pass
+    return nd
+
+
+def pegar_dimension_type_linear():
+    """Pega um DimensionType do tipo LINEAR - pegar 'o primeiro que
+    aparecer' sem filtrar da erro, porque o modelo tem varios estilos de
+    cota (angular, raio, diametro, nivel...) e so o Linear serve pra
+    Dimension criada entre faces (ponto a ponto)."""
+    tipos = FilteredElementCollector(doc).OfClass(DimensionType).ToElements()
+    for t in tipos:
+        try:
+            if t.StyleType == DimensionStyleType.Linear:
+                return t
+        except Exception:
+            continue
+    return None
+
+
+# ============================================================
+# 6) Linha de corte: atravessa o predio inteiro numa faixa, cota a
+#    espessura de cada parede interna que cruza a linha e continua ate
+#    a proxima - gera 1 cota corrida com varios segmentos aninhados
+#    (comodo | parede | comodo | parede | ...), em vez de cotar so o
+#    par de parede mais proximo.
+# ============================================================
+def bbox_xy(el, view):
+    """BoundingBox do elemento na view ativa, em planta (X/Y). None se
+    o elemento nao aparecer nessa view (ex.: fora do crop, categoria
+    oculta)."""
+    try:
+        bb = el.get_BoundingBox(view)
+    except Exception:
+        bb = None
+    if bb is None:
+        return None
+    return (bb.Min.X, bb.Max.X, bb.Min.Y, bb.Max.Y)
+
+
+def montar_grupos_linha(pisos, view, usa_y):
+    """Agrupa os pisos que estao na mesma 'faixa' de corte: se
+    usa_y=True, agrupa por sobreposicao em Y (faixa pra uma linha de
+    corte HORIZONTAL, tipo uma fileira de comodos lado a lado); se
+    usa_y=False, agrupa por sobreposicao em X (faixa pra uma linha de
+    corte VERTICAL, uma coluna de comodos empilhados). Sem isso, cada
+    piso geraria sua propria linha de corte e ela ficaria duplicada
+    quando 2+ pisos estao na mesma fileira/coluna.
+
+    [Fase 3.1 - correcao] A versao anterior fazia uniao-por-conjuntos
+    (union-find) usando so sobreposicao PAR A PAR (A com B, B com C),
+    depois calculava a posicao da linha como a intersecao de TODOS os
+    pisos do grupo resultante. Isso permitia grupos "em cadeia" sem
+    faixa comum de verdade (A e C podiam nao se sobrepor nada) - a
+    posicao calculada nesses casos caia fora da faixa real de alguns
+    pisos do grupo, e a linha de corte saia sem relacao com eles (bug
+    real, encontrado testando ao vivo com os pisos 2053261/2053476).
+
+    Agora o agrupamento e' um SWEEP ordenado pela posicao: mantem uma
+    'faixa comum' (band) que so ENCOLHE conforme cada piso e' adicionado
+    (band_lo = max acumulado, band_hi = min acumulado). Um piso so entra
+    no grupo atual se, encolhendo a faixa comum pra incluir ele, ainda
+    sobra faixa valida (band_lo <= band_hi) E a sobreposicao com a faixa
+    comum atual e' de pelo menos metade do menor dos dois (mesmo
+    criterio de antes, so que validado contra o grupo inteiro, nao so
+    contra o ultimo piso). Isso garante que 'pos_fixa' sempre passa de
+    fato por cima de TODOS os pisos do grupo.
+
+    Retorna lista de grupos, cada um com 'pos_fixa' (posicao da linha
+    de corte, no meio da faixa comum real) e a faixa ao longo do eixo da
+    cota (uniao de todos os pisos do grupo, onde a cota vai correr)."""
+    infos = []
+    for p in pisos:
+        bb = bbox_xy(p, view)
+        if bb is None:
+            continue
+        xmin, xmax, ymin, ymax = bb
+        if usa_y:
+            infos.append({"lo": ymin, "hi": ymax, "eixo_lo": xmin, "eixo_hi": xmax})
+        else:
+            infos.append({"lo": xmin, "hi": xmax, "eixo_lo": ymin, "eixo_hi": ymax})
+
+    if not infos:
+        return []
+
+    infos.sort(key=lambda i: i["lo"])
+
+    grupos_raw = []
+    atual = [infos[0]]
+    band_lo, band_hi = infos[0]["lo"], infos[0]["hi"]
+    for info in infos[1:]:
+        lo, hi = info["lo"], info["hi"]
+        overlap = _overlap(band_lo, band_hi, lo, hi)
+        menor = min(band_hi - band_lo, hi - lo)
+        novo_lo, novo_hi = max(band_lo, lo), min(band_hi, hi)
+        cabe = menor > 0 and overlap >= 0.5 * menor and novo_lo <= novo_hi
+        if cabe:
+            atual.append(info)
+            band_lo, band_hi = novo_lo, novo_hi
+        else:
+            grupos_raw.append((atual, band_lo, band_hi))
+            atual = [info]
+            band_lo, band_hi = lo, hi
+    grupos_raw.append((atual, band_lo, band_hi))
+
+    grupos = []
+    for idxs, band_lo, band_hi in grupos_raw:
+        eixo_los = [i["eixo_lo"] for i in idxs]
+        eixo_his = [i["eixo_hi"] for i in idxs]
+        # meio da faixa comum REAL (band_lo/band_hi ja' e' a intersecao
+        # valida acumulada de todos os pisos do grupo - garantido pelo
+        # sweep acima, ao contrario do max(los)/min(his) global de antes).
+        pos_fixa = (band_lo + band_hi) / 2.0
+        grupos.append({
+            "pos_fixa": pos_fixa,
+            "eixo_lo": min(eixo_los),
+            "eixo_hi": max(eixo_his),
+        })
+    return grupos
+
+
+def criar_cota_corrida(view, faces_ordenadas, eixo_dim, perp_dim, pos_fixa_perp, dim_type):
+    """1 Dimension em cadeia (varias referencias na mesma linha), correndo
+    ao longo de eixo_dim, com a linha de cota fixa em pos_fixa_perp na
+    direcao perp_dim - e' isso que produz os segmentos aninhados
+    (comodo | espessura da parede | comodo | ...) numa cota so."""
+    if len(faces_ordenadas) < 2:
+        return None
+    p0_axis = faces_ordenadas[0]["pos_axis"]
+    p1_axis = faces_ordenadas[-1]["pos_axis"]
+    p0 = XYZ(eixo_dim.X * p0_axis + perp_dim.X * pos_fixa_perp,
+             eixo_dim.Y * p0_axis + perp_dim.Y * pos_fixa_perp, 0.0)
+    p1 = XYZ(eixo_dim.X * p1_axis + perp_dim.X * pos_fixa_perp,
+             eixo_dim.Y * p1_axis + perp_dim.Y * pos_fixa_perp, 0.0)
+    linha = Line.CreateBound(p0, p1)
+    ra = ReferenceArray()
+    for it in faces_ordenadas:
+        ra.Append(it["face"].Reference)
+    nd = doc.Create.NewDimension(view, linha, ra)
+    if dim_type:
+        try:
+            nd.DimensionType = dim_type
+        except Exception:
+            pass
+    return nd
+
+
+def processar_linha_de_corte(grupo, todas_paredes, eixo_dim, perp_dim, view, dim_type, folga=FOLGA_LINHA_CORTE):
+    """Monta e cria 1 cota corrida pra 1 grupo (1 faixa/linha de corte):
+    acha toda parede cujo bbox contem a posicao da linha de corte (ou
+    seja, ela CRUZA essa linha), pega as faces dela perpendiculares a
+    eixo_dim (as 2 faces de cada parede interna viram o segmento de
+    espessura), ordena tudo ao longo de eixo_dim dentro da faixa do
+    grupo (+ folga pra pegar tambem a parede externa nas pontas), e cria
+    1 unica Dimension em cadeia com todas essas referencias."""
+    pos_fixa = grupo["pos_fixa"]
+    eixo_lo = grupo["eixo_lo"] - folga
+    eixo_hi = grupo["eixo_hi"] + folga
+
+    paredes_cruzando = []
+    for w in todas_paredes:
+        bb = bbox_xy(w, view)
+        if bb is None:
+            continue
+        wxmin, wxmax, wymin, wymax = bb
+        if eixo_dim is EIXO_X:
+            lo_p, hi_p = wymin, wymax
+        else:
+            lo_p, hi_p = wxmin, wxmax
+        if lo_p - TOL_DEDUP <= pos_fixa <= hi_p + TOL_DEDUP:
+            paredes_cruzando.append(w)
+
+    if not paredes_cruzando:
+        return None
+
+    faces = extrair_faces_da_parede(paredes_cruzando, eixo_dim, perp_dim, threshold=0.90)
+    faces = [f for f in faces if eixo_lo <= f["pos_axis"] <= eixo_hi]
+    faces = dedupe_por_posicao(sorted(faces, key=lambda f: f["pos_axis"]), TOL_DEDUP)
+
+    # nao cota o "entorno da view": tira so a face mais EXTERNA de cada
+    # ponta (a face de fora da parede de perimetro) - mantem a face
+    # INTERNA dela como limite da cadeia (a cota para ali, nao ultrapassa
+    # pra fora). Isso preserva a espessura de toda parede interna, so'
+    # corta a ponta externa do perimetro.
+    if len(faces) >= 2:
+        faces = faces[1:-1]
+
+    if len(faces) < 2:
+        return None
+
+    return criar_cota_corrida(view, faces, eixo_dim, perp_dim, pos_fixa, dim_type)
+
+
+# ============================================================
+# 7) MODO TESTE - cria so 1 cota, entre um par especifico de paredes
+#    (fase de validacao: o usuario cotou esse par na mao, ~349/348.5,
+#    pra eu confirmar que a logica automatica bate com o que ele quer
+#    antes de rodar em tudo. Nao mexe no fluxo automatico normal.)
+# ============================================================
+IDS_TESTE_PAR = (1661895, 1672375)  # usado so se MODO == "TESTE" (ver fim do arquivo)
+
+
+def main_teste(id_wall_1, id_wall_2):
+    wall1 = doc.GetElement(ElementId(id_wall_1))
+    wall2 = doc.GetElement(ElementId(id_wall_2))
+    if wall1 is None or wall2 is None:
+        forms.alert("Nao achei uma das paredes de teste (Id {} / {}).".format(
+            id_wall_1, id_wall_2), exitscript=True)
+        return
+    if not parede_reta_valida(wall1) or not parede_reta_valida(wall2):
+        forms.alert("Uma das paredes de teste nao tem eixo reto valido.", exitscript=True)
+        return
+
+    dim_type = pegar_dimension_type_linear()
+    view = doc.ActiveView
+
+    t = Transaction(doc, "Cotar(interior) - MODO TESTE (par especifico)")
+    t.Start()
+    try:
+        p_ini, p_fim, eixo, perp = extremos_da_parede(wall1)
+        if p_ini is None:
+            forms.alert("Parede {} sem as 2 faces de ponta - nao deu pra testar.".format(
+                wall1.Id.IntegerValue), exitscript=True)
+            return
+
+        # forca a "parede paralela mais proxima" a ser exatamente wall2,
+        # passando so ela como candidata (reaproveita a mesma logica do
+        # modo automatico, sem duplicar codigo).
+        resultado = montar_cota_parede_paralela(
+            wall1, [wall2], eixo, perp, p_ini["pos_axis"], p_fim["pos_axis"], p_ini["pos_perp"]
+        )
+        if not resultado:
+            forms.alert("Nao consegui montar a cota entre as 2 paredes de teste "
+                        "(nao sobrepoem, ou faces nao encontradas).", exitscript=True)
+            return
+
+        face_esta, face_prox, meio_eixo, w_prox = resultado
+        p0 = XYZ(eixo.X * meio_eixo + perp.X * face_esta["pos_axis"],
+                 eixo.Y * meio_eixo + perp.Y * face_esta["pos_axis"], 0.0)
+        p1 = XYZ(eixo.X * meio_eixo + perp.X * face_prox["pos_axis"],
+                 eixo.Y * meio_eixo + perp.Y * face_prox["pos_axis"], 0.0)
+        nd = _criar_dimension(view, p0, p1, eixo, 0.0, [face_esta, face_prox], dim_type)
+        doc.Regenerate()
+        output.print_md("## [TESTE] cota criada entre parede {} e {} - valor: **{}**".format(
+            wall1.Id.IntegerValue, w_prox.Id.IntegerValue, nd.ValueString))
+    finally:
+        t.Commit()
+
+
+def main():
+    view = doc.ActiveView
+
+    todas_paredes = list(FilteredElementCollector(doc, view.Id)
+                          .OfClass(Wall).WhereElementIsNotElementType().ToElements())
+    paredes = [w for w in todas_paredes if parede_reta_valida(w)]
+    puladas = len(todas_paredes) - len(paredes)
+
+    pisos = list(FilteredElementCollector(doc, view.Id)
+                 .OfClass(Floor).WhereElementIsNotElementType().ToElements())
+
+    output.print_md("**{} parede(s)** e **{} piso(s)** na view **{}** - processando **{}** parede(s){}.".format(
+        len(todas_paredes), len(pisos), view.Name, len(paredes),
+        " - {} pulada(s) por nao ter eixo reto valido (curva/cortina/residual)".format(puladas) if puladas else ""
+    ))
+    if not paredes and not pisos:
+        forms.alert("Nenhuma parede ou piso encontrado na view ativa.", exitscript=True)
+        return
+
+    dim_type = pegar_dimension_type_linear()
+
+    criadas_h = 0
+    criadas_v = 0
+    puladas_dup = 0
+    pares_paralelas_ja_cotados = set()
+
+    grupos_h_criados = 0
+    grupos_h_pulados = 0
+    grupos_v_criados = 0
+    grupos_v_pulados = 0
+
+    t = Transaction(doc, "Cotar(interior) - paredes paralelas H+V + linhas de corte aninhadas")
+    t.Start()
+
+    # ---------- paredes paralelas (Fase 2, sem alteracao) ----------
+    for wall in paredes:
+        try:
+            p_ini, p_fim, eixo, perp = extremos_da_parede(wall)
+            if p_ini is None:
+                output.print_md("  [AVISO] parede {}: nao achei as 2 faces de ponta - pulada.".format(
+                    wall.Id.IntegerValue))
+                continue
+
+            resultado_paralela = montar_cota_parede_paralela(
+                wall, todas_paredes, eixo, perp, p_ini["pos_axis"], p_fim["pos_axis"], p_ini["pos_perp"]
+            )
+            if not resultado_paralela:
+                continue
+
+            face_esta, face_prox, meio_eixo, w_prox = resultado_paralela
+
+            # dedup: mesmo par (independente de qual das 2 disparou a
+            # busca primeiro) nao cota 2x - nunca 2 linhas medindo a
+            # mesma coisa.
+            par_key = frozenset([wall.Id.IntegerValue, w_prox.Id.IntegerValue])
+            if par_key in pares_paralelas_ja_cotados:
+                puladas_dup += 1
+                continue
+            pares_paralelas_ja_cotados.add(par_key)
+
+            try:
+                p0 = XYZ(eixo.X * meio_eixo + perp.X * face_esta["pos_axis"],
+                         eixo.Y * meio_eixo + perp.Y * face_esta["pos_axis"], 0.0)
+                p1 = XYZ(eixo.X * meio_eixo + perp.X * face_prox["pos_axis"],
+                         eixo.Y * meio_eixo + perp.Y * face_prox["pos_axis"], 0.0)
+                _criar_dimension(view, p0, p1, eixo, 0.0, [face_esta, face_prox], dim_type)
+
+                # H/V: parede correndo em Y (N-S) -> cota atravessa em X -> horizontal.
+                # parede correndo em X (E-W) -> cota atravessa em Y -> vertical.
+                if abs(eixo.Y) > abs(eixo.X):
+                    criadas_h += 1
+                else:
+                    criadas_v += 1
+            except Exception as e:
+                output.print_md("  [ERRO] cota de parede paralela (parede {} <-> {}): {}".format(
+                    wall.Id.IntegerValue, w_prox.Id.IntegerValue, e))
+
+        except Exception as e:
+            output.print_md("  [ERRO] parede {}: {}".format(wall.Id.IntegerValue, e))
+
+    # ---------- linhas de corte aninhadas, H e V ----------
+    grupos_h = montar_grupos_linha(pisos, view, usa_y=True)   # faixas horizontais (fileiras)
+    grupos_v = montar_grupos_linha(pisos, view, usa_y=False)  # faixas verticais (colunas)
+
+    for g in grupos_h:
+        try:
+            nd = processar_linha_de_corte(g, todas_paredes, EIXO_X, EIXO_Y, view, dim_type)
+            if nd:
+                grupos_h_criados += 1
+            else:
+                grupos_h_pulados += 1
+        except Exception as e:
+            output.print_md("  [ERRO] linha de corte horizontal: {}".format(e))
+
+    for g in grupos_v:
+        try:
+            nd = processar_linha_de_corte(g, todas_paredes, EIXO_Y, EIXO_X, view, dim_type)
+            if nd:
+                grupos_v_criados += 1
+            else:
+                grupos_v_pulados += 1
+        except Exception as e:
+            output.print_md("  [ERRO] linha de corte vertical: {}".format(e))
+
+    doc.Regenerate()
+    t.Commit()
+
+    output.print_md("## PAREDES: {} horizontal(is) + {} vertical(is) = {} cota(s). "
+                     "{} par(es) pulado(s) por ja ter cota (duplicado).".format(
+                         criadas_h, criadas_v, criadas_h + criadas_v, puladas_dup))
+    output.print_md("## LINHAS DE CORTE: {} horizontal(is) + {} vertical(is) = {} cota(s) corrida(s) criada(s) "
+                     "(a partir de {} fileira(s) + {} coluna(s) de piso identificada(s)). "
+                     "{} pulada(s) por nao cruzar nenhuma parede referenciavel.".format(
+                         grupos_h_criados, grupos_v_criados, grupos_h_criados + grupos_v_criados,
+                         len(grupos_h), len(grupos_v), grupos_h_pulados + grupos_v_pulados))
+
+
+MODO = "TODAS"  # "TESTE" (par especifico, validacao) | "TODAS" (Fase 3 - paredes + linhas de corte na view ativa)
+
+if MODO == "TESTE":
+    main_teste(*IDS_TESTE_PAR)
+else:
+    main()
